@@ -31,6 +31,12 @@ and fixes issues**, so it builds and runs on current machines:
 - **Packet-level interleaving fix**: each time window is now sent with correct
   per-channel record start/end times, so all active channels of a window
   (e.g. `HH`, `LH`, `LN`) stream together instead of sequentially.
+- **C replay engine** (`src/srtpbc.c`): the real-time loop now runs in C using
+  libmseed and libdali.  It reads MiniSEED directly, slices traces by sample
+  index, packs 512-byte STEIM2 records and batches DataLink writes.  The old
+  ObsPy-per-trace loop could not keep up with thousands of channels in real
+  time; the C engine keeps the lag bounded (typically a few milliseconds).
+  `src/srtpb.py` remains the same command-line front-end.
 - **`checkmseed.py`**: helper to inspect MiniSEED files (headers only) and
   recommend `-ti` / `-tf` values so every band is active during the replay.
 - **`AGENTS.md`**: development/usage notes including the recommended 3-terminal
@@ -75,10 +81,11 @@ From the project root:
 
 ```bash
 ./INSTALL     # extracts the tar.gz, patches build settings, runs make
-make          # compiles the SWIG wrapper (_srtpblib.so) and msrtslice
+make          # compiles srtpbc, the SWIG wrapper and msrtslice
 ```
 
-When finished, all executables and Python files are deployed to `bin/`.
+When finished, all executables and Python files are deployed to `bin/`,
+including the C replay engine `bin/srtpbc`.
 
 ---
 
@@ -95,6 +102,10 @@ Then start the playback on another terminal:
 ```bash
 python bin/srtpb.py [commandline options] PATH
 ```
+
+The command line is unchanged.  The Python front-end locates `srtpbc` next
+to itself (or in `src/srtpbc`) and runs the C replay engine.  If it cannot
+find the engine, run `make` from the repository root.
 
 And on a third terminal you can watch the packets arrive:
 
@@ -132,8 +143,8 @@ options:
                         hh:mm:ss.f). Data after this time will not be sent.
                         Default - None
   -o options [options ...]
-                        additional optional parameters for read function. See
-                        obspy.read for help
+                        additional optional parameters. The C engine reads
+                        MiniSEED directly; only format=MSEED is validated.
   -s seconds            Packet time interval in seconds. Default - 1 sec.
   -l Latency            Latency of data. Can be one argument for all stations
                         in seconds or a file name containing a list of
@@ -147,7 +158,8 @@ options:
   -v                    Verbose (False).
   -d delay              Directly stream ordered file to server with delay (in
                         seconds) every 250 packets.
-  -n processors         Number of processors for fast replay
+  -n processors         Accepted for compatibility; the C engine is
+                        single-process
   --test                Testing mode - no data will be sent. (False)
 ```
 

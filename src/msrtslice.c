@@ -216,7 +216,7 @@ int ms_file2index(){
         return -1;
       }
       // populate index node
-      if ( ! (currec->filename = (char*)malloc(sizeof(char)*strlen(msfile))))// allocate for file name
+      if ( ! (currec->filename = (char*)malloc(sizeof(char)*(strlen(msfile)+1))))// allocate for file name
       {
         ms_log (2, "Error, cannot allocate buffer for file name\n");
         return -1;
@@ -273,7 +273,7 @@ int splitindex(){
   MSTraceGroup *mstg=NULL; // mseed trace group for each slice
   off_t fpos=0; // position in file
   int last=0; // is this the last record in file?
-  time_t tick=NULL,tock=NULL; // processing time measurement variables
+  time_t tick=0,tock=0; // processing time measurement variables
   double DT=0,tot=0,Hz=0; // processing time measurement variables
   totalsecDt=round((maxtimehp-mintimehp)/SEC+0.5);//total time span in seconds i.e number of slices
   currslicestarttime = mintimehp-SEC; // start from minimal time available
